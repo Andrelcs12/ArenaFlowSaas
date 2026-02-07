@@ -1,0 +1,94 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  STAFF
+  USER
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  INACTIVE
+  TRIAL
+}
+
+model Tenant {
+  id              String             @id @default(cuid())
+  slug            String             @unique
+  name            String
+  colors          Json?
+  logo            String?
+  
+  // --- Campos de Assinatura (SaaS) ---
+  status          SubscriptionStatus @default(TRIAL)
+  plan            String             @default("FREE")
+  customerId      String?            // ID do cliente no Abacate Pay
+  subscriptionId  String?            // ID da assinatura recorrente
+  expiresAt       DateTime?          // Data de expiração do plano
+  
+  courts          Court[]
+  users           User[]
+  bookings        Booking[]
+  payments        Payment[]          // Histórico de mensalidades/taxas
+  createdAt       DateTime           @default(now())
+}
+
+model User {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  password  String
+  role      Role      @default(USER)
+  tenantId  String
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  bookings  Booking[]
+}
+
+model Court {
+  id           String    @id @default(cuid())
+  name         String
+  pricePerHour Float
+  tenantId     String
+  tenant       Tenant    @relation(fields: [tenantId], references: [id])
+  bookings     Booking[]
+}
+
+model Booking {
+  id        String    @id @default(cuid())
+  startTime DateTime
+  endTime   DateTime
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  courtId   String
+  court     Court     @relation(fields: [courtId], references: [id])
+  tenantId  String
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  status    String    @default("PENDING")
+  paymentId String?   @unique // Caso a reserva precise de pagamento imediato
+  payment   Payment?  @relation(fields: [paymentId], references: [id])
+}
+
+model Payment {
+  id            String   @id @default(cuid())
+  externalId    String   @unique // ID que vem do Abacate Pay (abc_...)
+  amount        Float
+  status        String   // paid, pending, refunded
+  method        String   // PIX
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  booking       Booking? // Se for pagamento de uma reserva específica
+  createdAt     DateTime @default(now())
+}
