@@ -16,6 +16,19 @@ export default function AdminDashboard() {
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const router = useRouter();
+
+  // VERIFICAÇÃO DE SEGURANÇA: Se não estiver ativo, manda pagar
+  useEffect(() => {
+    if (user && user.tenant?.status !== "ACTIVE") {
+      router.push(`/${tenantSlug}/billing`);
+    }
+  }, [user, tenantSlug, router]);
+
+  if (user?.tenant?.status !== "ACTIVE") {
+    return <div className="h-screen flex items-center justify-center font-black italic">VERIFICANDO ASSINATURA...</div>;
+  }
+
   useEffect(() => {
     if (token && user?.tenantId) {
       fetch('http://localhost:3001/api/bookings', {

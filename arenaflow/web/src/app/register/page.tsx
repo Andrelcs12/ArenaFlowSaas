@@ -8,37 +8,41 @@ export default function RegisterPage() {
   const [formData, setFormData] = useState({ email: '', password: '', arenaName: '', slug: '' });
   const router = useRouter();
 
- const handleRegister = async (e: React.FormEvent) => {
+    // src/app/register/page.tsx
+    const handleRegister = async (e: React.FormEvent) => {
   e.preventDefault();
+  
+  // LOG PARA VOCÊ VER NO NAVEGADOR O QUE ESTÁ SAINDO
+  console.log("Enviando dados:", {
+    email: formData.email,
+    password: formData.password,
+    name: formData.arenaName,
+    slug: formData.slug
+  });
+
   try {
-    // 1. Criar a Arena (Tenant)
-    const tRes = await fetch('http://localhost:3001/api/tenants', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: formData.arenaName, slug: formData.slug }),
-    });
-    const tenant = await tRes.json();
-
-    if (!tRes.ok) throw new Error(tenant.error);
-
-    // 2. Criar o Usuário vinculado a essa Arena
-    const uRes = await fetch('http://localhost:3001/api/auth/register', {
+    const response = await fetch('http://localhost:3001/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
         email: formData.email, 
         password: formData.password, 
-        tenantId: tenant.id // IMPORTANTE: O ID que veio do tenant acima
+        name: formData.arenaName, // O BACKEND PEDE 'name'
+        slug: formData.slug       // O BACKEND PEDE 'slug'
       }),
     });
 
-    if (uRes.ok) router.push('/login');
-    else {
-      const error = await uRes.json();
-      alert(error.error);
+    const data = await response.json();
+
+    if (!response.ok) {
+      // Aqui você vai ver a mensagem real do erro (ex: "Slug já existe")
+      alert(`Erro: ${data.error}`); 
+      return;
     }
+
+    router.push('/login');
   } catch (err: any) {
-    alert(err.message);
+    alert("Erro de conexão com o servidor.");
   }
 };
 

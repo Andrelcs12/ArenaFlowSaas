@@ -36,7 +36,7 @@ model Tenant {
   // --- Campos de Assinatura (SaaS) ---
   status          SubscriptionStatus @default(TRIAL)
   plan            String             @default("FREE")
-  customerId      String?            // ID do cliente no Abacate Pay
+  customerId      String? @unique           // ID do cliente no Abacate Pay
   subscriptionId  String?            // ID da assinatura recorrente
   expiresAt       DateTime?          // Data de expiração do plano
   

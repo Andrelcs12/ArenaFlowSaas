@@ -5,16 +5,19 @@ const router = Router();
 
 router.post("/register", async (req, res) => {
   try {
-    const { email, password, tenantId, role } = req.body;
+    const { email, password, name, slug } = req.body;
 
-    // Verificação de campos obrigatórios (O motivo do erro 400)
-    if (!email || !password || !tenantId) {
-      return res.status(400).json({ error: "E-mail, senha e tenantId são obrigatórios." });
+    // Campos necessários para criar a Arena + Usuário
+    if (!email || !password || !name || !slug) {
+      return res.status(400).json({ 
+        error: "Para registrar, envie: email, password, name (da arena) e slug." 
+      });
     }
 
-    const user = await AuthService.register({ email, password, tenantId, role });
+    const user = await AuthService.register({ email, password, name, slug });
     res.status(201).json(user);
   } catch (error: any) {
+    // Se o slug já existir, o Prisma vai dar erro aqui
     res.status(400).json({ error: error.message });
   }
 });
@@ -28,4 +31,4 @@ router.post("/login", async (req, res) => {
   }
 });
 
-export { router as authRoutes}
+export { router as authRoutes };

@@ -8,27 +8,41 @@ export class AuthService {
   static async register(data: any) {
     const hashedPassword = await bcrypt.hash(data.password, 10);
     
-    // Na criação, já retornamos o usuário com o tenant para garantir consistência
-    return prisma.user.create({
-      data: {
-        email: data.email,
-        password: hashedPassword,
-        role: data.role || "USER",
-        tenantId: data.tenantId, 
-      },
-      include: {
-        tenant: true // Inclui os dados da arena recém-criada
-      }
+    // Criamos o Tenant e o User em uma única transação
+    return prisma.$transaction(async (tx) => {
+      // 1. Criar o Tenant (Arena)
+      const tenant = await tx.tenant.create({
+        data: {
+          name: data.name,
+          slug: data.slug,
+          status: "TRIAL", // Inicia em teste
+          plan: "FREE",
+          // Geramos um customerId temporário para você testar no Insomnia
+          customerId: `cust_${Math.random().toString(36).substr(2, 9)}`
+        }
+      });
+
+      // 2. Criar o Usuário vinculado a essa Arena
+      const user = await tx.user.create({
+        data: {
+          email: data.email,
+          password: hashedPassword,
+          role: "ADMIN", // Primeiro usuário é sempre ADMIN
+          tenantId: tenant.id,
+        },
+        include: {
+          tenant: true
+        }
+      });
+
+      return user;
     });
   }
 
   static async login({ email, password }: any) {
-    // CORREÇÃO AQUI: Adicionado o 'include' para buscar os dados da Arena/Tenant
     const user = await prisma.user.findUnique({ 
       where: { email },
-      include: {
-        tenant: true // Essencial para o Front-end saber o 'slug' da URL
-      }
+      include: { tenant: true }
     });
 
     if (!user) throw new Error("Credenciais inválidas");
@@ -36,21 +50,19 @@ export class AuthService {
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) throw new Error("Credenciais inválidas");
 
-    // Geramos o token com o tenantId no payload para segurança nas rotas
     const token = jwt.sign(
       { userId: user.id, role: user.role, tenantId: user.tenantId },
       JWT_SECRET,
       { expiresIn: "7d" }
     );
 
-    // Retornamos o objeto completo que o seu AuthContext espera
     return { 
       user: { 
         id: user.id, 
         email: user.email, 
         role: user.role,
         tenantId: user.tenantId,
-        tenant: user.tenant // Agora o front recebe: user.tenant.slug
+        tenant: user.tenant 
       }, 
       token 
     };
